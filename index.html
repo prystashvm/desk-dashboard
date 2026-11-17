@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<meta name="theme-color" content="#000000">
+<title>Desk Dashboard</title>
+<style>
+  :root {
+    --bg: #000;
+    --fg: #f5f5f7;
+    --dim: rgba(235,235,245,.55);
+    --faint: rgba(235,235,245,.18);
+    --accent: #ff9f0a;
+    --card: #1c1c1e;
+    --u: min(1vh, 0.56vw);          /* layout unit that fits landscape iPhone */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-rounded, "SF Pro Rounded", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+
+  #app {
+    height: 100%;
+    display: flex;
+    gap: calc(var(--u) * 3);
+    padding: max(calc(var(--u)*4), env(safe-area-inset-top)) max(calc(var(--u)*5), env(safe-area-inset-right))
+             max(calc(var(--u)*4), env(safe-area-inset-bottom)) max(calc(var(--u)*5), env(safe-area-inset-left));
+    transition: filter 3s ease, transform 1s ease, opacity 1s;
+  }
+
+  /* ---------------- left column: clock + forecast ---------------- */
+  .left { flex: 1.25 1 0; display: flex; flex-direction: column; min-width: 0; }
+  .clock { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
+  #date {
+    font-size: calc(var(--u) * 6.2);
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .01em;
+  }
+  #date .wd { text-transform: capitalize; }
+  #date .rest { color: var(--dim); font-weight: 500; }
+  #time {
+    font-size: calc(var(--u) * 27);
+    font-weight: 300;
+    white-space: nowrap;
+    line-height: .92;
+    letter-spacing: -.035em;
+    margin-left: -.04em;
+  }
+  #time .colon { display: inline-block; transform: translateY(-.06em); transition: opacity .4s; padding: 0 .02em; }
+  #time .colon.off { opacity: .3; }
+  #time .sec { font-size: .34em; color: var(--accent); font-weight: 400; letter-spacing: 0; margin-left: .18em; display: inline-block; width: 1.25em; }
+  .chips { display: flex; gap: calc(var(--u)*2); margin-top: calc(var(--u)*2); }
+  .chip {
+    display: flex; align-items: center; gap: calc(var(--u)*1.2);
+    font-size: calc(var(--u)*4); color: var(--dim);
+    background: var(--card); border-radius: 99px;
+    padding: calc(var(--u)*1) calc(var(--u)*2.6) calc(var(--u)*1) calc(var(--u)*1.8);
+  }
+  .chip svg { width: 1.3em; height: 1.3em; }
+
+  .forecast {
+    background: var(--card);
+    border-radius: calc(var(--u) * 5);
+    padding: calc(var(--u)*2.4) calc(var(--u)*1.5) calc(var(--u)*2.6);
+    display: flex;
+    margin-top: calc(var(--u) * 2.5);
+  }
+  .day { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--u)*0.6); position: relative; }
+  .day + .day::before { content: ""; position: absolute; left: 0; top: 10%; bottom: 10%; width: 1px; background: rgba(255,255,255,.07); }
+  .day .lbl { font-size: calc(var(--u)*3.4); color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .day.today .lbl { color: var(--fg); }
+  .day .ico { position: relative; }
+  .day svg { width: calc(var(--u)*7.5); height: calc(var(--u)*7.5); display: block; }
+  .day .pop { font-size: calc(var(--u)*2.9); color: #64d2ff; font-weight: 700; height: 1.15em; line-height: 1.15em; }
+  .day .tt { font-size: calc(var(--u)*4.2); font-weight: 600; white-space: nowrap; }
+  .day .tt .lo { color: var(--dim); font-weight: 500; }
+  .bar { width: 72%; height: calc(var(--u)*1.1); border-radius: 99px; background: rgba(255,255,255,.1); position: relative; }
+  .bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(to right, #5ac8fa, #a8e063 45%, #ffd60a 75%, #ff9f0a); }
+
+  /* ---------------- right column: weather card ---------------- */
+  .weather {
+    flex: 1 1 0;
+    min-width: 0;
+    border-radius: calc(var(--u) * 6);
+    padding: calc(var(--u)*4.2) calc(var(--u)*4.6);
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+    background: var(--card);
+    --glow: rgba(255,214,10,.16);
+  }
+  .weather::before {          /* faint glow behind the icon, tinted by current weather */
+    content: ""; position: absolute; width: 80%; height: 75%; right: -25%; top: -25%;
+    background: radial-gradient(circle, var(--glow), rgba(0,0,0,0) 65%);
+    pointer-events: none;
+  }
+  .weather > * { position: relative; }
+  .w-head { display: flex; justify-content: space-between; align-items: flex-start; }
+  #city { font-size: calc(var(--u)*5); font-weight: 600; display: flex; align-items: center; gap: .3em; }
+  #city svg { width: .8em; height: .8em; }
+  #now-temp { font-size: calc(var(--u)*21); font-weight: 300; line-height: 1; letter-spacing: -.03em; margin-top: calc(var(--u)*0.5); }
+  #now-icon svg { width: calc(var(--u)*19); height: calc(var(--u)*19); filter: drop-shadow(0 calc(var(--u)*1) calc(var(--u)*2) rgba(0,0,0,.18)); }
+  #now-desc { font-size: calc(var(--u)*4.8); font-weight: 600; margin-top: calc(var(--u)*0.6); }
+  #now-hl { font-size: calc(var(--u)*4.3); margin-top: calc(var(--u)*0.4); color: var(--dim); }
+  .w-stats { display: flex; gap: calc(var(--u)*3); font-size: calc(var(--u)*3.7); color: var(--dim); margin-top: calc(var(--u)*1.6); }
+  .w-stats span { display: flex; align-items: center; gap: .3em; }
+  .w-stats svg { width: 1.1em; height: 1.1em; }
+
+  #hourly {
+    margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,.1);
+    padding-top: calc(var(--u)*2.4);
+    display: flex; justify-content: space-between;
+  }
+  .hr { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u)*0.7); flex: 1 1 0; }
+  .hr .t { font-size: calc(var(--u)*3.6); color: var(--dim); font-weight: 600; }
+  .hr:first-child .t { color: var(--fg); }
+  .hr svg { width: calc(var(--u)*7.5); height: calc(var(--u)*7.5); }
+  .hr .v { font-size: calc(var(--u)*4.4); font-weight: 600; }
+
+  #status { position: fixed; right: calc(var(--u)*2); bottom: calc(var(--u)*0.6); font-size: 9px; color: #3a3a3c; }
+  #hint { position: fixed; left: 50%; top: 6px; transform: translateX(-50%); font-size: 11px; color: #555; opacity: 0; white-space: nowrap; transition: opacity 1s; }
+
+  /* ---------------- focus mode (tap): clock only ---------------- */
+  body.focus .weather, body.focus .forecast, body.focus .chips { display: none; }
+  body.focus .left { align-items: center; }
+  body.focus .clock { align-items: center; }
+  body.focus #time { font-size: min(26vw, 55vh); }
+  body.focus #date { font-size: min(4.5vw, 8vh); }
+
+  /* ---------------- night: StandBy-style red monochrome ---------------- */
+  body.night #app { filter: grayscale(1) sepia(1) saturate(5) hue-rotate(-45deg) brightness(.5); }
+
+  /* ---------------- portrait fallback ---------------- */
+  @media (orientation: portrait) {
+    :root { --u: min(0.52vh, 0.95vw); }
+    #app { flex-direction: column; }
+    .left { flex: 0 0 auto; }
+    .clock { align-items: center; padding: calc(var(--u)*5) 0 calc(var(--u)*2); }
+    #time { font-size: 21vw; }
+    .weather { flex: 1 1 auto; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <section class="left">
+    <div class="clock">
+      <div id="date">&nbsp;</div>
+      <div id="time" class="num">--:--</div>
+      <div class="chips">
+        <div class="chip num" id="sunrise"></div>
+        <div class="chip num" id="sunset"></div>
+      </div>
+    </div>
+    <div class="forecast num" id="daily"></div>
+  </section>
+
+  <section class="weather num" id="weather">
+    <div class="w-head">
+      <div>
+        <div id="city"></div>
+        <div id="now-temp">--°</div>
+      </div>
+      <div id="now-icon"></div>
+    </div>
+    <div id="now-desc">Завантаження…</div>
+    <div id="now-hl"></div>
+    <div class="w-stats" id="stats"></div>
+    <div id="hourly"></div>
+  </section>
+</div>
+<div id="status"></div>
+<div id="hint">Торкніться, щоб перемкнути вигляд</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ======================= settings ======================= */
+  var params = {};
+  location.search.replace(/^\?/, '').split('&').forEach(function (kv) {
+    if (!kv) return;
+    var p = kv.split('=');
+    params[decodeURIComponent(p[0])] = decodeURIComponent((p[1] || '').replace(/\+/g, ' '));
+  });
+  var LAT = parseFloat(params.lat) || 49.8397;   // Lviv
+  var LON = parseFloat(params.lon) || 24.0297;
+  var CITY = params.city || 'Львів';
+  var SHOW_SECONDS = params.sec !== '0';   // seconds on by default; ?sec=0 hides them
+  var NIGHT_FROM = parseInt(params.nightFrom || '23', 10);
+  var NIGHT_TO = parseInt(params.nightTo || '7', 10);
+  var DEMO = params.demo === '1';
+  var WEATHER_EVERY_MIN = 15;
+  var CACHE_KEY = 'dash-weather-v2';
+
+  var $ = function (id) { return document.getElementById(id); };
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function r(x) { var v = Math.round(x); return (v === 0 ? 0 : v); }   // avoid "-0"
+
+  /* ======================= icons (inline SVG) ======================= */
+  var CLOUD = 'M7 19.5a4.5 4.5 0 0 1-.9-8.9 6.2 6.2 0 0 1 11.9-1.2A5 5 0 0 1 17.5 19.5z';
+  var SUN_RAYS = (function () {
+    var s = '';
+    for (var i = 0; i < 8; i++) {
+      var a = i * Math.PI / 4, x1 = 12 + Math.cos(a) * 7.2, y1 = 12 + Math.sin(a) * 7.2,
+          x2 = 12 + Math.cos(a) * 9.6, y2 = 12 + Math.sin(a) * 9.6;
+      s += '<line x1="' + x1.toFixed(2) + '" y1="' + y1.toFixed(2) + '" x2="' + x2.toFixed(2) + '" y2="' + y2.toFixed(2) + '"/>';
+    }
+    return s;
+  })();
+  function sun(tx, ty, sc) {
+    return '<g transform="translate(' + tx + ' ' + ty + ') scale(' + sc + ')"><g stroke="#FFD60A" stroke-width="1.8" stroke-linecap="round">' + SUN_RAYS +
+           '</g><circle cx="12" cy="12" r="5" fill="#FFD60A"/></g>';
+  }
+  function moon(tx, ty, sc) {
+    return '<g transform="translate(' + tx + ' ' + ty + ') scale(' + sc + ')"><path d="M15.5 3.2a8.8 8.8 0 1 0 5.3 15.1A7.3 7.3 0 0 1 15.5 3.2z" fill="#E5E5EA"/></g>';
+  }
+  function cloud(fill, ty) { return '<path d="' + CLOUD + '" fill="' + fill + '" transform="translate(0 ' + (ty || 0) + ')"/>'; }
+  function drops(color, n) {
+    var s = '<g stroke="' + color + '" stroke-width="1.7" stroke-linecap="round">';
+    var xs = n === 2 ? [9.5, 14.5] : [7.5, 12, 16.5];
+    xs.forEach(function (x) { s += '<line x1="' + x + '" y1="18.6" x2="' + (x - 1.2) + '" y2="22"/>'; });
+    return s + '</g>';
+  }
+  function flakes() {
+    var s = '<g fill="#fff">';
+    [[8, 20], [12, 21.8], [16, 20]].forEach(function (p) { s += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="1.2"/>'; });
+    return s + '</g>';
+  }
+  function svg(inner) { return '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' + inner + '</svg>'; }
+
+  var ICONS = {
+    clearDay: function () { return svg(sun(0, 0, 1)); },
+    clearNight: function () { return svg(moon(0, 0, 1)); },
+    partlyDay: function () { return svg(sun(5, -1, .62) + cloud('#fff', 1.5)); },
+    partlyNight: function () { return svg(moon(7, -1, .6) + cloud('#D1D1D6', 1.5)); },
+    cloudy: function () { return svg(cloud('#C7C7CC', -2) + '<g transform="translate(-3 2) scale(.82)">' + cloud('#fff') + '</g>'); },
+    fog: function () {
+      return svg(cloud('#D1D1D6', -3) + '<g stroke="#fff" stroke-width="1.7" stroke-linecap="round"><line x1="4" y1="19.5" x2="20" y2="19.5"/><line x1="6" y1="22.5" x2="18" y2="22.5"/></g>');
+    },
+    drizzle: function () { return svg(cloud('#fff', -3) + drops('#64D2FF', 2)); },
+    rain: function () { return svg(cloud('#E5E5EA', -3) + drops('#64D2FF', 3)); },
+    snow: function () { return svg(cloud('#fff', -3) + flakes()); },
+    storm: function () {
+      return svg(cloud('#AEAEB2', -3) + '<path d="M12.8 15.5 9.6 20.6h2.6l-1 3.4 3.6-5.3h-2.6l1.2-3.2z" fill="#FFD60A"/>');
+    }
+  };
+  var SMALL = {
+    pin: '<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg>',
+    rise: '<svg viewBox="0 0 24 24" fill="none" stroke="#ff9f0a" stroke-width="2" stroke-linecap="round"><path d="M5 18a7 7 0 0 1 14 0"/><line x1="2" y1="21" x2="22" y2="21"/><path d="M12 3v6M9 6l3-3 3 3"/></svg>',
+    set: '<svg viewBox="0 0 24 24" fill="none" stroke="#ff6b3d" stroke-width="2" stroke-linecap="round"><path d="M5 18a7 7 0 0 1 14 0"/><line x1="2" y1="21" x2="22" y2="21"/><path d="M12 9V3M9 6l3 3 3-3"/></svg>',
+    wind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h8"/></svg>',
+    drop: '<svg viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" fill="currentColor"/></svg>',
+    feel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z"/></svg>'
+  };
+
+  /* ======================= WMO codes ======================= */
+  function kind(code, isDay) {
+    var day = isDay !== 0;
+    if (code === 0) return day ? 'clearDay' : 'clearNight';
+    if (code === 1 || code === 2) return day ? 'partlyDay' : 'partlyNight';
+    if (code === 3) return 'cloudy';
+    if (code === 45 || code === 48) return 'fog';
+    if (code >= 51 && code <= 57) return 'drizzle';
+    if ((code >= 61 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+    if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
+    if (code >= 95) return 'storm';
+    return 'cloudy';
+  }
+  var DESC = {
+    0: 'Ясно', 1: 'Переважно ясно', 2: 'Мінлива хмарність', 3: 'Хмарно',
+    45: 'Туман', 48: 'Туман з памороззю',
+    51: 'Легка мряка', 53: 'Мряка', 55: 'Сильна мряка', 56: 'Крижана мряка', 57: 'Крижана мряка',
+    61: 'Невеликий дощ', 63: 'Дощ', 65: 'Сильний дощ', 66: 'Крижаний дощ', 67: 'Крижаний дощ',
+    71: 'Невеликий сніг', 73: 'Сніг', 75: 'Сильний сніг', 77: 'Снігова крупа',
+    80: 'Короткочасний дощ', 81: 'Злива', 82: 'Сильна злива', 85: 'Снігопад', 86: 'Сильний снігопад',
+    95: 'Гроза', 96: 'Гроза з градом', 99: 'Гроза з градом'
+  };
+  var GLOW = {
+    clearDay: 'rgba(255,214,10,.20)', partlyDay: 'rgba(255,214,10,.13)',
+    clearNight: 'rgba(120,140,255,.16)', partlyNight: 'rgba(120,140,255,.12)',
+    cloudy: 'rgba(200,200,210,.10)', fog: 'rgba(200,200,210,.10)',
+    drizzle: 'rgba(100,210,255,.13)', rain: 'rgba(100,210,255,.16)',
+    snow: 'rgba(220,235,255,.16)', storm: 'rgba(191,90,242,.18)'
+  };
+  function icon(code, isDay) { return ICONS[kind(code, isDay)](); }
+
+  /* ======================= clock ======================= */
+  var UA_DAYS = ['неділя', 'понеділок', 'вівторок', 'середа', 'четвер', 'пʼятниця', 'субота'];
+  var UA_DAYS_SHORT = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  var UA_MONTHS = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня',
+                   'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+
+  var lastMinute = -1;
+  function tick() {
+    var d = new Date();
+    var h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+    var html = pad(h) + '<span class="colon' + (s % 2 ? ' off' : '') + '">:</span>' + pad(m);
+    if (SHOW_SECONDS) html += '<span class="sec">' + pad(s) + '</span>';
+    $('time').innerHTML = html;
+
+    if (m !== lastMinute) {
+      lastMinute = m;
+      $('date').innerHTML = '<span class="wd">' + UA_DAYS[d.getDay()] + '</span><span class="rest">, ' +
+                            d.getDate() + ' ' + UA_MONTHS[d.getMonth()] + '</span>';
+      var night = NIGHT_FROM > NIGHT_TO ? (h >= NIGHT_FROM || h < NIGHT_TO) : (h >= NIGHT_FROM && h < NIGHT_TO);
+      document.body.classList.toggle('night', night);
+      var dx = (m % 5) - 2, dy = (Math.floor(m / 5) % 3) - 1;   // gentle pixel shift
+      $('app').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    }
+    setTimeout(tick, 1000 - d.getMilliseconds() + 5);
+  }
+
+  /* ======================= weather ======================= */
+  function weatherUrl() {
+    return 'https://api.open-meteo.com/v1/forecast' +
+      '?latitude=' + LAT + '&longitude=' + LON +
+      '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day' +
+      '&hourly=temperature_2m,weather_code,precipitation_probability,is_day' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset' +
+      '&wind_speed_unit=ms&timezone=auto&forecast_days=6';
+  }
+  function hhmm(iso) { return iso ? iso.substr(11, 5) : '--:--'; }
+
+  function render(data, fetchedAt) {
+    var c = data.current, dl = data.daily, hr = data.hourly;
+    var k = kind(c.weather_code, c.is_day);
+    $('weather').style.setProperty('--glow', GLOW[k] || GLOW.cloudy);
+
+    $('city').innerHTML = CITY + ' ' + SMALL.pin;
+    $('now-temp').textContent = r(c.temperature_2m) + '°';
+    $('now-icon').innerHTML = ICONS[k]();
+    $('now-desc').textContent = DESC[c.weather_code] || '—';
+    $('now-hl').textContent = 'Макс. ' + r(dl.temperature_2m_max[0]) + '°  Мін. ' + r(dl.temperature_2m_min[0]) + '°';
+    $('stats').innerHTML =
+      '<span>' + SMALL.feel + r(c.apparent_temperature) + '°</span>' +
+      '<span>' + SMALL.wind + r(c.wind_speed_10m) + ' м/с</span>' +
+      '<span>' + SMALL.drop + c.relative_humidity_2m + '%</span>';
+
+    $('sunrise').innerHTML = SMALL.rise + hhmm(dl.sunrise[0]);
+    $('sunset').innerHTML = SMALL.set + hhmm(dl.sunset[0]);
+
+    // hourly: now + next 4 slots every 2 hours
+    var nowIso = c.time.substr(0, 13), start = 0;
+    for (var i = 0; i < hr.time.length; i++) { if (hr.time[i].substr(0, 13) >= nowIso) { start = i; break; } }
+    var h = '';
+    for (var n = 0; n < 5; n++) {
+      var j = start + n * 2;
+      if (j >= hr.time.length) break;
+      h += '<div class="hr"><div class="t">' + (n === 0 ? 'Зараз' : hr.time[j].substr(11, 2)) + '</div>' +
+           icon(hr.weather_code[j], hr.is_day ? hr.is_day[j] : 1) +
+           '<div class="v">' + r(n === 0 ? c.temperature_2m : hr.temperature_2m[j]) + '°</div></div>';
+    }
+    $('hourly').innerHTML = h;
+
+    // daily: today + 5, with temperature range bars
+    var days = Math.min(dl.time.length, 6);
+    var gMin = Infinity, gMax = -Infinity;
+    for (var a = 0; a < days; a++) {
+      gMin = Math.min(gMin, dl.temperature_2m_min[a]);
+      gMax = Math.max(gMax, dl.temperature_2m_max[a]);
+    }
+    var span = Math.max(gMax - gMin, 1);
+    var out = '';
+    for (var b = 0; b < days; b++) {
+      var parts = dl.time[b].split('-');
+      var dt = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+      var lo = dl.temperature_2m_min[b], hi = dl.temperature_2m_max[b];
+      var left = (lo - gMin) / span * 100, right = (gMax - hi) / span * 100;
+      var p = dl.precipitation_probability_max ? dl.precipitation_probability_max[b] : 0;
+      out += '<div class="day' + (b === 0 ? ' today' : '') + '">' +
+             '<div class="lbl">' + (b === 0 ? 'сьог' : UA_DAYS_SHORT[dt.getDay()]) + '</div>' +
+             '<div class="ico">' + icon(dl.weather_code[b], 1) + '</div>' +
+             '<div class="tt">' + r(hi) + '° <span class="lo">' + r(lo) + '°</span></div>' +
+             '<div class="bar"><i style="left:' + left.toFixed(1) + '%;right:' + right.toFixed(1) + '%"></i></div>' +
+             '<div class="pop">' + (p >= 30 ? '💧' + p + '%' : '') + '</div></div>';
+    }
+    $('daily').innerHTML = out;
+
+    var t = new Date(fetchedAt);
+    $('status').textContent = 'оновлено ' + pad(t.getHours()) + ':' + pad(t.getMinutes());
+  }
+
+  function demoData() {
+    var now = new Date(), base = new Date(now); base.setMinutes(0, 0, 0);
+    function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+    var ht = [], htemp = [], hcode = [], hday = [], hpop = [];
+    var codes = [2, 2, 3, 61, 63, 3, 2, 1, 0, 0, 1, 2];
+    for (var i = 0; i < 48; i++) {
+      var d = new Date(base.getTime() + i * 3600e3);
+      ht.push(iso(d)); htemp.push(4 + 3 * Math.sin((d.getHours() - 9) / 24 * 2 * Math.PI));
+      hcode.push(codes[Math.floor(i / 2) % codes.length]); hday.push(d.getHours() >= 8 && d.getHours() < 17 ? 1 : 0); hpop.push(20);
+    }
+    var dt = [], dc = [3, 61, 71, 2, 0, 1], dmax = [6, 4, 1, 3, 5, 7], dmin = [1, 0, -4, -3, -1, 2], dp = [40, 80, 70, 10, 0, 5], sr = [], ss = [];
+    for (var j = 0; j < 6; j++) {
+      var dd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + j);
+      var s = iso(dd).substr(0, 10); dt.push(s); sr.push(s + 'T07:31'); ss.push(s + 'T16:27');
+    }
+    return {
+      current: { time: iso(base), temperature_2m: 4.6, apparent_temperature: 1.2, relative_humidity_2m: 81, weather_code: 2, wind_speed_10m: 4.2, is_day: 1 },
+      hourly: { time: ht, temperature_2m: htemp, weather_code: hcode, is_day: hday, precipitation_probability: hpop },
+      daily: { time: dt, weather_code: dc, temperature_2m_max: dmax, temperature_2m_min: dmin, precipitation_probability_max: dp, sunrise: sr, sunset: ss }
+    };
+  }
+
+  function loadCache() {
+    try {
+      var raw = localStorage.getItem(CACHE_KEY);
+      if (raw) { var o = JSON.parse(raw); render(o.data, o.at); }
+    } catch (e) {}
+  }
+
+  function fetchWeather() {
+    if (DEMO) { render(demoData(), Date.now()); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', weatherUrl(), true);
+    xhr.timeout = 20000;
+    xhr.onload = function () {
+      if (xhr.status === 200) {
+        try {
+          var data = JSON.parse(xhr.responseText), at = Date.now();
+          render(data, at);
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify({ data: data, at: at })); } catch (e) {}
+        } catch (e) { $('status').textContent = 'помилка даних'; }
+      } else {
+        $('status').textContent = 'погода недоступна (' + xhr.status + ')';
+      }
+    };
+    xhr.onerror = xhr.ontimeout = function () {
+      $('status').textContent = 'офлайн · ' + $('status').textContent.replace(/^офлайн · /, '');
+    };
+    xhr.send();
+  }
+
+  /* ======================= tap: switch view ======================= */
+  try { if (localStorage.getItem('dash-focus') === '1') document.body.classList.add('focus'); } catch (e) {}
+  document.addEventListener('click', function () {
+    var on = document.body.classList.toggle('focus');
+    try { localStorage.setItem('dash-focus', on ? '1' : '0'); } catch (e) {}
+  });
+  setTimeout(function () { $('hint').style.opacity = 1; }, 800);
+  setTimeout(function () { $('hint').style.opacity = 0; }, 5000);
+
+  /* ======================= start ======================= */
+  tick();
+  if (!DEMO) loadCache();
+  fetchWeather();
+  setInterval(fetchWeather, WEATHER_EVERY_MIN * 60 * 1000);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { fetchWeather(); lastMinute = -1; }
+  });
+  setInterval(function () {               // daily reload at 04:00 for long uptime
+    var d = new Date();
+    if (d.getHours() === 4 && d.getMinutes() === 0) location.reload();
+  }, 60 * 1000);
+})();
+</script>
+</body>
+</html>
