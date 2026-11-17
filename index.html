@@ -74,18 +74,18 @@
   .forecast {
     background: var(--card);
     border-radius: calc(var(--u) * 5);
-    padding: calc(var(--u)*2.4) calc(var(--u)*1.5) calc(var(--u)*2.6);
+    padding: calc(var(--u)*3) calc(var(--u)*2);
     display: flex;
     margin-top: calc(var(--u) * 2.5);
   }
-  .day { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--u)*0.6); position: relative; }
-  .day + .day::before { content: ""; position: absolute; left: 0; top: 10%; bottom: 10%; width: 1px; background: rgba(255,255,255,.07); }
+  .day { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: calc(var(--u)*1.2); }
+
   .day .lbl { font-size: calc(var(--u)*3.4); color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
   .day.today .lbl { color: var(--fg); }
   .day .ico { position: relative; }
-  .day svg { width: calc(var(--u)*7.5); height: calc(var(--u)*7.5); display: block; }
+  .day svg { width: calc(var(--u)*9); height: calc(var(--u)*9); display: block; }
   .day .pop { font-size: calc(var(--u)*2.9); color: #64d2ff; font-weight: 700; height: 1.15em; line-height: 1.15em; }
-  .day .tt { font-size: calc(var(--u)*4.2); font-weight: 600; white-space: nowrap; }
+  .day .tt { font-size: calc(var(--u)*4.6); font-weight: 600; white-space: nowrap; }
   .day .tt .lo { color: var(--dim); font-weight: 500; }
   .bar { width: 72%; height: calc(var(--u)*1.1); border-radius: 99px; background: rgba(255,255,255,.1); position: relative; }
   .bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(to right, #5ac8fa, #a8e063 45%, #ffd60a 75%, #ff9f0a); }
@@ -113,6 +113,7 @@
   #now-temp { font-size: calc(var(--u)*21); font-weight: 300; line-height: 1; letter-spacing: -.03em; margin-top: calc(var(--u)*0.5); }
   #now-icon svg { width: calc(var(--u)*19); height: calc(var(--u)*19); filter: drop-shadow(0 calc(var(--u)*1) calc(var(--u)*2) rgba(0,0,0,.18)); }
   #now-desc { font-size: calc(var(--u)*4.8); font-weight: 600; margin-top: calc(var(--u)*0.6); }
+  #now-feel { font-size: calc(var(--u)*4.3); margin-top: calc(var(--u)*0.8); }
   #now-hl { font-size: calc(var(--u)*4.3); margin-top: calc(var(--u)*0.4); color: var(--dim); }
   .w-stats { display: flex; gap: calc(var(--u)*3); font-size: calc(var(--u)*3.7); color: var(--dim); margin-top: calc(var(--u)*1.6); }
   .w-stats span { display: flex; align-items: center; gap: .3em; }
@@ -127,8 +128,8 @@
   .hr { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u)*0.7); flex: 1 1 0; }
   .hr .t { font-size: calc(var(--u)*3.6); color: var(--dim); font-weight: 600; }
   .hr:first-child .t { color: var(--fg); }
-  .hr svg { width: calc(var(--u)*7.5); height: calc(var(--u)*7.5); }
-  .hr .v { font-size: calc(var(--u)*4.4); font-weight: 600; }
+  .hr svg { width: calc(var(--u)*9); height: calc(var(--u)*9); }
+  .hr .v { font-size: calc(var(--u)*4.8); font-weight: 600; }
 
   #status { position: fixed; right: calc(var(--u)*2); bottom: calc(var(--u)*0.6); font-size: 9px; color: #3a3a3c; }
   #hint { position: fixed; left: 50%; top: 6px; transform: translateX(-50%); font-size: 11px; color: #555; opacity: 0; white-space: nowrap; transition: opacity 1s; }
@@ -177,8 +178,8 @@
       <div id="now-icon"></div>
     </div>
     <div id="now-desc">Завантаження…</div>
+    <div id="now-feel"></div>
     <div id="now-hl"></div>
-    <div class="w-stats" id="stats"></div>
     <div id="hourly"></div>
   </section>
 </div>
@@ -344,21 +345,18 @@
     $('now-temp').textContent = r(c.temperature_2m) + '°';
     $('now-icon').innerHTML = ICONS[k]();
     $('now-desc').textContent = DESC[c.weather_code] || '—';
-    $('now-hl').textContent = 'Макс. ' + r(dl.temperature_2m_max[0]) + '°  Мін. ' + r(dl.temperature_2m_min[0]) + '°';
-    $('stats').innerHTML =
-      '<span>' + SMALL.feel + r(c.apparent_temperature) + '°</span>' +
-      '<span>' + SMALL.wind + r(c.wind_speed_10m) + ' м/с</span>' +
-      '<span>' + SMALL.drop + c.relative_humidity_2m + '%</span>';
+    $('now-feel').textContent = 'Відчувається як ' + r(c.apparent_temperature) + '°';
+    $('now-hl').textContent = 'Макс. ' + r(dl.temperature_2m_max[0]) + '°  ·  Мін. ' + r(dl.temperature_2m_min[0]) + '°';
 
     $('sunrise').innerHTML = SMALL.rise + hhmm(dl.sunrise[0]);
     $('sunset').innerHTML = SMALL.set + hhmm(dl.sunset[0]);
 
-    // hourly: now + next 4 slots every 2 hours
+    // hourly: now + next 3 slots every 3 hours
     var nowIso = c.time.substr(0, 13), start = 0;
     for (var i = 0; i < hr.time.length; i++) { if (hr.time[i].substr(0, 13) >= nowIso) { start = i; break; } }
     var h = '';
-    for (var n = 0; n < 5; n++) {
-      var j = start + n * 2;
+    for (var n = 0; n < 4; n++) {
+      var j = start + n * 3;
       if (j >= hr.time.length) break;
       h += '<div class="hr"><div class="t">' + (n === 0 ? 'Зараз' : hr.time[j].substr(11, 2)) + '</div>' +
            icon(hr.weather_code[j], hr.is_day ? hr.is_day[j] : 1) +
@@ -367,7 +365,7 @@
     $('hourly').innerHTML = h;
 
     // daily: today + 5, with temperature range bars
-    var days = Math.min(dl.time.length, 6);
+    var days = Math.min(dl.time.length, 5);
     var gMin = Infinity, gMax = -Infinity;
     for (var a = 0; a < days; a++) {
       gMin = Math.min(gMin, dl.temperature_2m_min[a]);
@@ -384,9 +382,7 @@
       out += '<div class="day' + (b === 0 ? ' today' : '') + '">' +
              '<div class="lbl">' + (b === 0 ? 'сьог' : UA_DAYS_SHORT[dt.getDay()]) + '</div>' +
              '<div class="ico">' + icon(dl.weather_code[b], 1) + '</div>' +
-             '<div class="tt">' + r(hi) + '° <span class="lo">' + r(lo) + '°</span></div>' +
-             '<div class="bar"><i style="left:' + left.toFixed(1) + '%;right:' + right.toFixed(1) + '%"></i></div>' +
-             '<div class="pop">' + (p >= 30 ? '💧' + p + '%' : '') + '</div></div>';
+             '<div class="tt">' + r(hi) + '° <span class="lo">' + r(lo) + '°</span></div></div>';
     }
     $('daily').innerHTML = out;
 
